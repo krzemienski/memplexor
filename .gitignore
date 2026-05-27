@@ -1,0 +1,13 @@
+# Other plugin scratch
+.anneal/
+.mimirs/
+**/.mimirs/
+.omc/
+.remember/
+.shannon/
+
+# OS
+.DS_Store
+
+# Memplexor: dev scratch under the plugin's own .claude/memory (a user-project artifact, not part of the plugin)
+/.claude/memory/

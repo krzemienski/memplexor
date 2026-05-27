@@ -1,0 +1,13 @@
+{
+  "name": "memplexor",
+  "version": "0.1.0",
+  "description": "Project-local memory layer for Claude Code: auto-orient at session start, save progress before compaction/stop, generate per-project guidelines.",
+  "author": {
+    "name": "Memplexor"
+  },
+  "homepage": "https://github.com/example/memplexor",
+  "keywords": ["memory", "session", "context", "hooks", "project-setup"],
+  "commands": "./commands",
+  "hooks": "./hooks/hooks.json",
+  "skills": "./skills"
+}
