@@ -88,11 +88,17 @@ fi
 summary_files=""
 summary_extra=""
 if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
-  # Extract last ~50 tool_use file paths from the JSONL transcript
   if command -v python3 >/dev/null 2>&1; then
+    # Extract: (a) Write/Edit/Read file_paths, (b) Bash commands (1st line, ≤80c),
+    # (c) Agent subtask descriptions. Returns up to 15 distinct activity bullets.
     summary_files="$(python3 -c "
 import json, sys
-paths = []
+acts = []
+seen = set()
+def add(s):
+    if s and s not in seen:
+        seen.add(s)
+        acts.append(s)
 try:
     with open('$transcript_path') as f:
         for line in f:
@@ -105,22 +111,31 @@ try:
             if not isinstance(content, list):
                 continue
             for block in content:
-                if not isinstance(block, dict):
-                    continue
-                if block.get('type') == 'tool_use':
-                    inp = block.get('input') or {}
+                if not isinstance(block, dict): continue
+                if block.get('type') != 'tool_use': continue
+                name = block.get('name', '')
+                inp = block.get('input') or {}
+                if name in ('Write','Edit','MultiEdit','NotebookEdit'):
                     p = inp.get('file_path') or inp.get('path') or inp.get('filePath')
-                    if p and p not in paths:
-                        paths.append(p)
+                    if p: add(f'* edit: {p}')
+                elif name == 'Read':
+                    p = inp.get('file_path') or inp.get('path')
+                    if p: add(f'* read: {p}')
+                elif name == 'Bash':
+                    cmd = (inp.get('command','') or '').strip().split('\n',1)[0]
+                    if cmd: add(f'* bash: {cmd[:80]}')
+                elif name == 'Agent':
+                    desc = inp.get('description','') or ''
+                    if desc: add(f'* agent: {desc[:80]}')
 except Exception:
     pass
-for p in paths[-15:]:
-    print('* ' + p)
+for a in acts[-15:]:
+    print(a)
 " 2>/dev/null)"
   fi
 fi
 
-[ -z "$summary_files" ] && summary_files="* (transcript not available)"
+[ -z "$summary_files" ] && summary_files="* (no tool activity captured)"
 
 # --- atomic write helper ------------------------------------------------------
 atomic_write() {
@@ -162,7 +177,7 @@ is_placeholder() {
   [ -z "$s" ] && return 0
   # Match common stub patterns: "* (none ...)", "* (... not available)", "* (add ...)", "* (... TBD)"
   case "$s" in
-    "*(none"*|"*(nonerecorded)"|"*(transcriptnotavailable)"|"*(transcriptunavailable)") return 0;;
+    "*(none"*|"*(nonerecorded)"|"*(transcriptnotavailable)"|"*(transcriptunavailable)"|"*(notoolactivitycaptured)") return 0;;
     "*(addyourshere"*|"*(refineonnextsessionstart)") return 0;;
     "*(capturedecisionsmanuallyvia\`/memory-save\`)") return 0;;
   esac
