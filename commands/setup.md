@@ -51,17 +51,25 @@ Detect:
 
 ## Step 3 — Plan changes
 
-Compute the file list:
+Compute the file list. **THESE ARE THE ONLY PATHS YOU WRITE.** Do not create
+`.claude/memory/CURRENT.md` or `.claude/memory/HISTORY.md` at the memory root —
+those go inside `context/` and `progress/`.
 
 ```
-.claude/memory/                          (mkdir)
-.claude/memory/context/                  (mkdir)
-.claude/memory/progress/                 (mkdir)
-.claude/memory/sessions/                 (mkdir)
-.claude/memory/context/CURRENT.md        (seed if absent unless --force)
-.claude/memory/progress/HISTORY.md       (append setup entry; create if absent)
-.claude/skills/project-guidelines/SKILL.md  (generate or refresh)
+.claude/memory/                                (mkdir -p)
+.claude/memory/context/                        (mkdir -p)
+.claude/memory/progress/                       (mkdir -p)
+.claude/memory/sessions/                       (mkdir -p)
+.claude/memory/context/CURRENT.md              (seed if absent unless --force)
+.claude/memory/progress/HISTORY.md             (append setup entry; create if absent)
+.claude/skills/project-guidelines/SKILL.md     (generate or refresh)
 ```
+
+Forbidden paths (never create these):
+
+- `.claude/memory/CURRENT.md`  — wrong, use `context/CURRENT.md`
+- `.claude/memory/HISTORY.md`  — wrong, use `progress/HISTORY.md`
+- Anything outside `$PWD`
 
 If `--dry-run`: print the plan, exit. Do not write.
 
