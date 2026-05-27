@@ -28,15 +28,39 @@ conventions are generated once and updated on demand.
 ### Local install (development)
 
 ```bash
-# Clone or symlink into Claude Code's plugin directory
+# Clone the repo
+git clone https://github.com/krzemienski/memplexor.git
+cd memplexor
+
+# Validate the plugin manifest (uses the real claude CLI)
+claude plugin validate .
+
+# Option A — symlink into Claude Code's user plugin dir (recommended for hacking)
 mkdir -p ~/.claude/plugins
-ln -s /path/to/memplexor ~/.claude/plugins/memplexor
+ln -sfn "$PWD" ~/.claude/plugins/memplexor
 
-# Or copy
-cp -R /path/to/memplexor ~/.claude/plugins/memplexor
+# Option B — load it ad-hoc for a single session (no install)
+cd /path/to/any-project
+claude --plugin-dir /path/to/memplexor
+```
 
-# Then in Claude Code
-/plugin list          # should show memplexor
+Verify it loaded:
+
+```bash
+claude --plugin-dir /path/to/memplexor plugin list  | grep memplexor
+claude --plugin-dir /path/to/memplexor plugin details memplexor
+```
+
+You should see:
+
+```
+memplexor 0.1.0
+  Project-local memory layer for Claude Code: …
+Component inventory
+  Skills (6)  memory-prune, memory-refresh, memory-save, memory-status, project-guidelines, setup
+  Hooks (3)   SessionStart, Stop, PreCompact  (harness-only — no model context cost)
+Projected token cost
+  Always-on:   ~261 tok   added to every session
 ```
 
 ### Marketplace install
@@ -289,11 +313,59 @@ way.
   documentation; edit `templates/project-guidelines.SKILL.md` for the
   generated per-project skill
 
+## Testing & validation
+
+A complete functional-validation harness lives at `tests/validate.py`. It
+runs against the **real** Claude Code CLI (no mocks):
+
+```bash
+pip install claude-code-sdk        # one-time
+python3 tests/validate.py --quick  # manifest + hook scripts only (no LLM calls, ~2 s)
+python3 tests/validate.py          # + live SDK subprocesses (~70 s)
+python3 tests/validate.py --bench  # + latency benchmarks
+```
+
+The harness:
+
+- Validates `plugin.json`, `hooks.json`, every command frontmatter
+- Runs `claude plugin validate` against the manifest
+- Spawns each hook script with controlled JSON payloads on stdin
+- Checks atomic-write integrity (`.tmp.*` cleanup)
+- Verifies content-bearing CURRENT.md sections survive save-hook rewrites
+- Verifies dup-suppression within 60 s and distinct titles within 60 s
+- Spawns real headless Claude sessions via `claude --plugin-dir`
+- Confirms SessionStart hook injects orientation header + seeded markers
+- Confirms Stop hook appends HISTORY + writes session note after subprocess exit
+- Times session-start, session-save, and measures injected-context token size
+
+### Benchmark results (Opus 4.7, MacBook Pro M-series, 2026-05-27)
+
+| Metric | p50 | p95 | Target |
+|---|---|---|---|
+| SessionStart hook latency | 68 ms | 73 ms | < 200 ms |
+| Stop/PreCompact hook latency | 100 ms | 144 ms | < 500 ms |
+| Injected-context size | — | ~298 tokens (1.2 KB) | < 3000 tokens |
+
+The plugin adds ~261 always-on tokens per Claude Code session and ~298
+tokens of dynamic project context. Hooks complete in under 150 ms p95 on
+warm storage.
+
+### What "26/26 PASS" actually covers
+
+| Group | Count | What it proves |
+|---|---|---|
+| Manifest | 11 | Plugin schema is valid; CLI accepts it |
+| Hook subprocess unit | 8 | Hooks work without an LLM in the loop |
+| Live SDK subprocess | 4 | Real Claude Code sees the injected context + real `Stop` hook fires |
+| Benchmarks | 3 | Latency targets met on real hardware |
+
 ## See also
 
 - `docs/PRD.md` — full Product Requirements Document
+- `tests/validate.py` — functional-validation harness
 - `.claude-plugin/plugin.json` — plugin manifest
 - `hooks/hooks.json` — hook registration
+- https://github.com/krzemienski/memplexor — source
 
 ## License
 
