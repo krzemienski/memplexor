@@ -4,12 +4,15 @@
     "name": "krzemienski"
   },
   "metadata": {
-    "description": "Local marketplace for the Memplexor plugin."
+    "description": "Marketplace for the Memplexor plugin."
   },
   "plugins": [
     {
       "name": "memplexor",
-      "source": ".",
+      "source": {
+        "source": "github",
+        "repo": "krzemienski/memplexor"
+      },
       "description": "Project-local memory layer for Claude Code: auto-orient at session start, save progress before compaction/stop, generate per-project guidelines.",
       "version": "0.1.0",
       "category": "memory"
